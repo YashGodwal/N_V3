@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Happy Valentine's Day, Neetu!</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg:#0f0a0c; --term-bg:#1e1418; --term-bar:#261c20; --border:#2a1a1f;
+    --rose:#e84a6a; --rose-dim:#e88da0; --soft:#d4a0b0; --out:#a08a8e;
+    --dim:#4a3a3e; --gold:#f0a500; --bb-bg:#161013; --row:#221a1e;
+  }
+
+  body {
+    background:var(--bg); font-family:'IBM Plex Mono',monospace;
+    color:#ccc; min-height:100vh; display:flex;
+    justify-content:center; align-items:center;
+    padding:20px; overflow:hidden;
+  }
+
+  /* ════ BOOT ════ */
+  #boot {
+    position:fixed; inset:0; background:var(--bg);
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    z-index:100; transition:opacity .6s;
+  }
+  #boot.gone { opacity:0; pointer-events:none; }
+  .boot-inner { width:520px; max-width:92vw; }
+  .bl { font-size:13px; line-height:2; color:var(--out); opacity:0; white-space:pre; }
+  .bl.show { opacity:1; transition:opacity .25s; }
+  .bl .g { color:#6ecf71; }
+  .bl .r { color:var(--rose); }
+  .bl .d { color:var(--dim); }
+  .bar-track { width:100%; height:6px; background:var(--border); border-radius:3px; margin:6px 0; overflow:hidden; }
+  .bar-fill  { height:100%; width:0%; background:var(--rose); border-radius:3px; transition:width .4s; }
+  .bcur { display:inline-block; width:8px; height:13px; background:var(--rose-dim); vertical-align:middle; margin-left:3px; animation:blink 1s step-end infinite; }
+
+  /* ════ QUESTION SCREEN ════ */
+  #question {
+    position:fixed; inset:0; background:var(--bg);
+    display:none; flex-direction:column;
+    justify-content:center; align-items:center;
+    z-index:99; transition:opacity .5s;
+  }
+  #question.show { display:flex; opacity:1; }
+  #question.gone { opacity:0; pointer-events:none; }
+  
+  .q-box { 
+    text-align:center; padding:40px; max-width:600px;
+    background:var(--term-bg); border-radius:8px;
+    border:1px solid var(--border);
+    box-shadow:0 0 50px rgba(232,74,106,0.15);
+  }
+  
+  .q-line { 
+    font-size:14px; line-height:2.2; text-align:left;
+    padding:0 20px; margin-bottom:8px;
+  }
+  .q-line .prompt { color:var(--rose-dim); }
+  .q-line .cmd { color:#fff; }
+  .q-line .out { color:var(--out); }
+  .q-line.center { text-align:center; }
+  .q-line.big { 
+    font-size:28px; color:var(--rose); font-weight:600;
+    letter-spacing:2px; margin:20px 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.88; transform:scale(1.03); }
+  }
+
+  .q-input-row {
+    margin-top:30px; padding:20px 20px 10px;
+    border-top:1px solid var(--border);
+    display:flex; align-items:center; gap:8px;
+  }
+  .q-input-row .prompt { font-size:14px; color:var(--rose-dim); white-space:nowrap; }
+  .q-input-row .typed { font-size:14px; color:#fff; min-width:4px; }
+  .q-input-row .cursor { 
+    display:inline-block; width:8px; height:15px;
+    background:var(--rose-dim); margin-left:2px;
+    animation:blink 1s step-end infinite;
+  }
+  .q-input-row .hint { 
+    font-size:11px; color:var(--dim); 
+    margin-left:auto; white-space:nowrap;
+  }
+
+  .reject-msg {
+    margin-top:20px; font-size:18px; color:var(--rose);
+    line-height:1.8; display:none;
+  }
+  .reject-msg.show { display:block; animation:fadeIn .5s; }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+  @keyframes blink { 50%{opacity:0;} }
+
+  /* ════ MAIN ════ */
+  .container {
+    width:100%; max-width:960px; display:flex; height:520px;
+    border-radius:6px; overflow:hidden;
+    box-shadow:0 0 60px rgba(180,40,60,.22),0 0 120px rgba(180,40,60,.07);
+    opacity:0; transition:opacity .5s .15s; pointer-events:none;
+  }
+  .container.show { opacity:1; pointer-events:auto; }
+
+  /* LEFT */
+  .terminal { flex:1; background:var(--term-bg); display:flex; flex-direction:column; position:relative; overflow:hidden; border-right:1px solid var(--border); }
+  .tbar { background:var(--term-bar); padding:8px 12px; display:flex; align-items:center; gap:7px; flex-shrink:0; border-bottom:1px solid var(--border); }
+  .dot { width:13px; height:13px; border-radius:50%; }
+  .dot.r{background:#ff5f57;} .dot.y{background:#febc2e;} .dot.g{background:#28c840;}
+  .tbar-label { margin-left:10px; font-size:11px; color:var(--dim); }
+
+  .scene { position:absolute; inset:28px 0 0 0; padding:18px 22px 10px; opacity:0; pointer-events:none; transition:opacity .4s; display:flex; flex-direction:column; }
+  .scene.active { opacity:1; pointer-events:auto; }
+
+  .line { font-size:13px; line-height:1.72; white-space:pre-wrap; }
+  .prompt  { color:var(--rose-dim); }
+  .cmd     { color:#fff; }
+  .out     { color:var(--out); }
+  .success { color:var(--rose-dim); }
+  .dim     { color:var(--dim); }
+  .rose    { color:var(--rose); }
+  .gold    { color:var(--gold); }
+  .soft    { color:var(--soft); }
+  .gap     { height:12px; flex-shrink:0; }
+
+  .cursor { display:inline-block; width:8px; height:14px; background:var(--rose-dim); margin-left:2px; vertical-align:middle; animation:blink 1s step-end infinite; }
+
+  .scene-badge { position:absolute; bottom:8px; right:14px; font-size:10px; color:var(--dim); z-index:2; }
+
+  .input-row { margin-top:auto; padding-top:10px; border-top:1px solid var(--border); display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .input-row .prompt { font-size:13px; white-space:nowrap; }
+  .input-row .typed  { font-size:13px; color:#fff; white-space:nowrap; min-width:4px; }
+  .input-row .hint   { font-size:10px; color:var(--dim); margin-left:auto; }
+  .typed.wrong { color:#ff5555 !important; }
+
+  /* RIGHT */
+  .bloomberg { flex:1; background:var(--bb-bg); display:flex; flex-direction:column; font-size:11px; overflow:hidden; }
+  .bb-header { background:var(--bg); padding:7px 14px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; border-bottom:1px solid var(--border); }
+  .bb-header .title { color:var(--rose); font-weight:600; font-size:13px; letter-spacing:2px; }
+  .bb-header .ts { color:var(--dim); font-size:11px; }
+  .bb-panel { flex:1; padding:12px 14px; overflow:hidden; display:none; flex-direction:column; }
+  .bb-panel.active { display:flex; }
+  .sec-title { color:var(--rose); font-size:10px; font-weight:600; letter-spacing:1.5px; margin-bottom:8px; margin-top:4px; }
+  .mt { width:100%; border-collapse:collapse; }
+  .mt tr { border-bottom:1px solid var(--row); }
+  .mt td { padding:5px 0; vertical-align:middle; font-size:11.5px; }
+  .mt .tag   { font-size:9px; font-weight:700; color:var(--rose); width:36px; }
+  .mt .label { color:var(--out); padding-left:6px; }
+  .mt .val   { text-align:right; color:#eee; font-weight:500; padding-right:8px; }
+  .mt .badge { font-size:9px; font-weight:700; padding:1px 5px; border-radius:2px; white-space:nowrap; }
+  .b-rose{background:#3a1a22;color:var(--rose);} .b-soft{background:#2a1a2a;color:var(--soft);}
+  .b-gold{background:#2a2218;color:var(--gold);} .b-up{background:#1a2a22;color:#5dba7d;}
+  
+  /* scramble animation for badges */
+  @keyframes scramble {
+    0% { opacity:0.6; }
+    100% { opacity:1; }
+  }
+  .badge.scrambling { animation: scramble 0.05s; }
+  .divider { border-top:1px solid var(--rose); margin:10px 0 6px; opacity:.35; }
+  .news { margin-bottom:7px; }
+  .news-time { color:var(--rose); font-size:10px; font-weight:600; margin-bottom:1px; }
+  .ntag { font-weight:700; font-size:10px; }
+  .nt-a{color:#ff6b80;} .nt-r{color:var(--soft);} .nt-f{color:var(--rose-dim);}
+  .ntext { color:var(--dim); font-size:10.5px; line-height:1.45; }
+  .bb-footer { border-top:1px solid var(--border); padding:6px 14px; display:flex; justify-content:space-between; flex-shrink:0; background:var(--bg); }
+  .bb-footer span { color:var(--dim); font-size:10px; }
+
+  @media(max-width:620px){
+    .container{flex-direction:column;height:auto;}
+    .terminal,.bloomberg{min-height:260px;}
+    .scene{inset:28px 0 0 0;}
+    .q-box{padding:30px 20px;} .q-line.big{font-size:22px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ════ BOOT ════ -->
+<div id="boot">
+  <div class="boot-inner">
+    <div class="bl" id="b0"><span class="d">neetu@valentine:~$ </span><span class="r">valentine_protocol.exe</span></div>
+    <div class="bl" id="b1"><span class="d">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span></div>
+    <div class="bl" id="b2"><span>  Initializing love_confession.exe</span><span class="g">  ✓</span></div>
+    <div class="bl" id="b3"><span>  Decrypting neetu_profile.db</span><span class="g">       ✓</span></div>
+    <div class="bl" id="b4"><span>  Connecting heart_exchange.exe</span><span class="g">     ✓</span></div>
+    <div class="bl" id="b5"><span>  Loading secret_letters.log</span><span class="g">        ✓</span></div>
+    <div class="bl" id="b6"><span>  Arming valentine_protocol</span><span class="g">         ✓</span></div>
+    <div class="bl" id="b7"><span>  Scanning personality database</span><span class="g">     ✓</span></div>
+    <div class="bl" id="b8"><span>  Loading your smile archives</span><span class="g">       ✓</span></div>
+    <div class="bl" id="b9"><span class="d">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span></div>
+    <div class="bl" id="b10"><span>  Preparing surprise</span></div>
+    <div class="bl" id="b_bar"><div class="bar-track"><div class="bar-fill" id="barFill"></div></div></div>
+    <div class="bl show" id="b_pct"><span id="pctText">  0%</span></div>
+    <div class="bl" id="b11"><span class="d">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span></div>
+    <div class="bl" id="b12" style="margin-top:14px;text-align:center;"><span class="d">Opening surprise...</span><span class="bcur"></span></div>
+    <div class="q-line " id="b10" style="margin-top:14px;">
+        <span class="-left-2" style=" white-space: nowrap; font-size:22px;letter-spacing:2px;display:block;text-align:center;margin:10px ; width: 100%; max-width: 800px; margin: auto; padding: 0 30px; position: relative; left: -4rem; ">❤️  H A P P Y  V A L E N T I N E ' S ❤️</span>
+        <span style="color:var(--soft);display:block;text-align:center;font-size:15px;letter-spacing:3px;">N E E T U</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════ QUESTION SCREEN ════ -->
+<div id="question">
+  <div class="q-box">
+    <div class="q-line"><span class="prompt">system@valentine:~$</span> <span class="cmd">cat message_for_neetu.txt</span></div>
+    <div class="q-line" style="margin-top:16px;padding-left:20px;"><span class="out">Every moment with you feels like magic.</span></div>
+    <div class="q-line" style="padding-left:20px;"><span class="out">Your smile lights up my entire world.</span></div>
+    <div class="q-line" style="padding-left:20px;"><span class="out">I can't imagine my life without you in it.</span></div>
+    
+    <div class="q-line big center">
+      💕 Will you be my Valentine? 💕
+    </div>
+
+    <div class="q-input-row">
+      <span class="prompt">neetu@valentine:~$</span>
+      <span class="typed" id="qTyped"></span>
+      <span class="cursor"></span>
+      <span class="hint">type: yes or no</span>
+    </div>
+
+    <div class="reject-msg" id="rejectMsg">
+      😢 My heart is broken...<br>
+      But I'll wait for you forever. 💔
+    </div>
+  </div>
+</div>
+
+<!-- ════ MAIN ════ -->
+<div class="container" id="mainScreen">
+
+  <!-- LEFT -->
+  <div class="terminal">
+    <div class="tbar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <span class="tbar-label">neetu@valentine ~</span>
+    </div>
+
+    <!-- Scene 0 -->
+    <div class="scene active" id="s0">
+      <div class="line"><span class="out">Initializing love_confession.exe...</span></div>
+      <div class="line"><span class="out">Decrypting neetu_profile.db...</span></div>
+      <div class="line"><span class="success">Connection established. ❤️</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="prompt">lover@neetu:~$</span> <span class="cmd">cat confession.txt</span></div>
+      <div class="gap"></div>
+      <div class="line" style="padding-left:12px"><span class="out">  Your laugh is my favorite sound in the world.</span></div>
+      <div class="line" style="padding-left:12px"><span class="out">  The way you care about everyone around you</span></div>
+      <div class="line" style="padding-left:12px"><span class="out">  makes you the most beautiful person I know.</span></div>
+      <div class="line" style="padding-left:12px"><span class="out">  Every day with you is a gift, Neetu.</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="rose" style="font-size:16px;">Happy Valentine's Day ❤️</span></div>
+      <div class="input-row">
+        <span class="prompt">lover@neetu:~$</span>
+        <span class="typed" id="typed0"></span><span class="cursor"></span>
+        <span class="hint">type: run love_scan.sh</span>
+      </div>
+    </div>
+
+    <!-- Scene 1 -->
+    <div class="scene" id="s1">
+      <div class="line"><span class="prompt">lover@neetu:~$</span> <span class="cmd">run love_scan.sh</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="out">━━━ Analyzing Neetu's Qualities ━━━</span></div>
+      <div class="line"><span class="out">  💕 Kindness Level         .......... </span><span class="rose">INFINITE</span></div>
+      <div class="line"><span class="out">  💕 Smile Power            .......... </span><span class="gold">LEGENDARY</span></div>
+      <div class="line"><span class="out">  💕 Intelligence Factor    .......... </span><span class="success">GENIUS</span></div>
+      <div class="line"><span class="out">  💕 Beauty Rating          .......... </span><span class="rose">BREATHTAKING</span></div>
+      <div class="line"><span class="out">  💕 Perfect For Me         .......... </span><span class="soft">100.00%</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="success">Analysis complete: Neetu is everything I ever wanted.</span></div>
+      <div class="input-row">
+        <span class="prompt">lover@neetu:~$</span>
+        <span class="typed" id="typed1"></span><span class="cursor"></span>
+        <span class="hint">type: cat love_letters.log</span>
+      </div>
+    </div>
+
+    <!-- Scene 2 -->
+    <div class="scene" id="s2">
+      <div class="line"><span class="prompt">lover@neetu:~$</span> <span class="cmd">cat love_letters.log</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="out">[MEMORY 01] That moment when you smiled at me —</span></div>
+      <div class="line"><span class="out">            time literally stopped.</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="out">[MEMORY 02] Your late-night texts always make my</span></div>
+      <div class="line"><span class="out">            entire day better, no matter what.</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="out">[MEMORY 03] The way you light up when you talk</span></div>
+      <div class="line"><span class="out">            about things you love is mesmerizing.</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="out">[TRUTH] You are my dream come true, Neetu.</span></div>
+      <div class="input-row">
+        <span class="prompt">lover@neetu:~$</span>
+        <span class="typed" id="typed2"></span><span class="cursor"></span>
+        <span class="hint">type: run forever.exe</span>
+      </div>
+    </div>
+
+    <!-- Scene 3 -->
+    <div class="scene" id="s3">
+      <div class="line"><span class="prompt">lover@neetu:~$</span> <span class="cmd">run forever.exe</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="out">  💕 💕 💕 💕 💕 💕 💕 💕 💕</span></div>
+      <div class="line"><span class="out">  💕                          💕</span></div>
+      <div class="line"><span class="out">  💕   🌹  I LOVE YOU  🌹    💕</span></div>
+      <div class="line"><span class="out">  💕       N E E T U         💕</span></div>
+      <div class="line"><span class="out">  💕   You're My Forever 💞  💕</span></div>
+      <div class="line"><span class="out">  💕                          💕</span></div>
+      <div class="line"><span class="out">  💕 💕 💕 💕 💕 💕 💕 💕 💕</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="success">  valentine_protocol.exe complete.</span></div>
+      <div class="line"><span class="success">  Forever yours. Always. 💕</span></div>
+      <div class="gap"></div>
+      <div class="line"><span class="dim">  [session ended — but my love never will]</span></div>
+      <div class="line"><span class="dim">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span></div>
+      <div class="line"><span class="rose" style="font-size:15px;">  🔒 SPECIAL CONTENT LOCKED 🔒</span></div>
+      <div class="line"><span class="out">  A secret message awaits...</span></div>
+      <div class="line"><span class="dim">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span></div>
+      <div class="input-row">
+        <span class="prompt">lover@neetu:~$</span>
+        <span class="typed" id="typed3"></span><span class="cursor"></span>
+        <span class="hint">secret code</span>
+      </div>
+    </div>
+
+    <div class="scene-badge" id="badge">1 / 5</div>
+  </div>
+
+  <!-- RIGHT: LOVE EXCHANGE -->
+  <div class="bloomberg" id="bloombergPanel">
+    <div class="bb-header">
+      <span class="title">LOVE EXCHANGE</span>
+      <span class="ts">14 FEB 2026 00:00:00</span>
+    </div>
+    <div class="bb-panel active" id="bb0">
+      <div class="sec-title">NEETU LOVE METRICS – LIVE</div>
+      <table class="mt">
+        <tr><td class="tag">SMLE</td><td class="label">Smile Power</td><td class="val">∞</td><td><span class="badge b-rose">INFINITE</span></td></tr>
+        <tr><td class="tag">KIND</td><td class="label">Kindness Index</td><td class="val">999.99</td><td><span class="badge b-rose">LIMIT UP</span></td></tr>
+        <tr><td class="tag">LOVE</td><td class="label">Love Received</td><td class="val">MAX</td><td><span class="badge b-gold">ALL TIME HIGH</span></td></tr>
+        <tr><td class="tag">HART</td><td class="label">My Heart Status</td><td class="val">HERS</td><td><span class="badge b-soft">TAKEN</span></td></tr>
+        <tr><td class="tag">EVER</td><td class="label">Forever Factor</td><td class="val">∞</td><td><span class="badge b-rose">LOCKED</span></td></tr>
+      </table>
+      <div class="divider"></div>
+      <div class="sec-title">BREAKING – VALENTINE WIRE</div>
+      <div class="news"><div class="news-time">00:00:01</div><span class="ntag nt-a">ALERT:</span><span class="ntext"> Neetu said YES. Happiness levels now unmeasurable. Markets in chaos.</span></div>
+      <div class="news"><div class="news-time">00:00:02</div><span class="ntag nt-r">REPORT:</span><span class="ntext"> Her smile just caused global love surge. Scientists baffled.</span></div>
+    </div>
+    <div class="bb-panel" id="bb1">
+      <div class="sec-title">NEETU QUALITY ANALYSIS</div>
+      <table class="mt">
+        <tr><td class="tag">KIND</td><td class="label">Kindness Level</td><td class="val">∞</td><td><span class="badge b-rose">INFINITE</span></td></tr>
+        <tr><td class="tag">SMLE</td><td class="label">Smile Power</td><td class="val">LEGENDARY</td><td><span class="badge b-gold">LEGENDARY</span></td></tr>
+        <tr><td class="tag">IQ</td><td class="label">Intelligence</td><td class="val">GENIUS</td><td><span class="badge b-rose">GENIUS</span></td></tr>
+        <tr><td class="tag">BEAU</td><td class="label">Beauty Rating</td><td class="val">∞</td><td><span class="badge b-soft">BREATHTAKING</span></td></tr>
+        <tr><td class="tag">MTCH</td><td class="label">Perfect For Me</td><td class="val">100%</td><td><span class="badge b-up">CONFIRMED</span></td></tr>
+      </table>
+      <div class="divider"></div>
+      <div class="sec-title">VALENTINE WIRE</div>
+      <div class="news"><div class="news-time">00:00:03</div><span class="ntag nt-r">REPORT:</span><span class="ntext"> Quality scan complete. Results: Neetu is literally perfect.</span></div>
+      <div class="news"><div class="news-time">00:00:04</div><span class="ntag nt-f">FORECAST:</span><span class="ntext"> Her perfection index expected to keep rising. No ceiling detected.</span></div>
+    </div>
+    <div class="bb-panel" id="bb2">
+      <div class="sec-title">LOVE MEMORY ARCHIVES</div>
+      <table class="mt">
+        <tr><td class="tag">MEM1</td><td class="label">First Smile Impact</td><td class="val">∞</td><td><span class="badge b-rose">TIME STOPPED</span></td></tr>
+        <tr><td class="tag">MEM2</td><td class="label">Text Message Joy</td><td class="val">9999</td><td><span class="badge b-gold">DAILY HIGH</span></td></tr>
+        <tr><td class="tag">MEM3</td><td class="label">Her Passion Level</td><td class="val">MAX</td><td><span class="badge b-rose">MESMERIZING</span></td></tr>
+        <tr><td class="tag">TRUE</td><td class="label">Dream Come True</td><td class="val">YES</td><td><span class="badge b-up">CONFIRMED</span></td></tr>
+      </table>
+      <div class="divider"></div>
+      <div class="sec-title">VALENTINE WIRE</div>
+      <div class="news"><div class="news-time">00:00:05</div><span class="ntag nt-a">ALERT:</span><span class="ntext"> Memory archive fully loaded. Every moment with her: priceless.</span></div>
+      <div class="news"><div class="news-time">00:00:06</div><span class="ntag nt-f">FORECAST:</span><span class="ntext"> Creating infinite new beautiful memories. Forever trajectory confirmed.</span></div>
+    </div>
+    <div class="bb-panel" id="bb3">
+      <div class="sec-title">FOREVER DASHBOARD – FINAL</div>
+      <table class="mt">
+        <tr><td class="tag">LOVE</td><td class="label">Love Intensity</td><td class="val">∞∞∞</td><td><span class="badge b-rose">OVERFLOW</span></td></tr>
+        <tr><td class="tag">US</td><td class="label">Together Forever</td><td class="val">ALWAYS</td><td><span class="badge b-rose">GUARANTEED</span></td></tr>
+        <tr><td class="tag">NEET</td><td class="label">She's My</td><td class="val">EVERYTHING</td><td><span class="badge b-gold">CONFIRMED</span></td></tr>
+        <tr><td class="tag">STAR</td><td class="label">My Universe</td><td class="val">★★★★★</td><td><span class="badge b-soft">PERFECT</span></td></tr>
+        <tr><td class="tag">YOU</td><td class="label">The One</td><td class="val">NEETU</td><td><span class="badge b-rose">FOREVER</span></td></tr>
+      </table>
+      <div class="divider"></div>
+      <div class="sec-title">FINAL BROADCAST</div>
+      <div class="news"><div class="news-time">00:00:07</div><span class="ntag nt-a">ALERT:</span><span class="ntext"> Valentine protocol complete. She said YES. Love levels: permanently maxed. 💕</span></div>
+      <div class="news"><div class="news-time">00:00:08</div><span class="ntag nt-r">REPORT:</span><span class="ntext"> This is forever. Neetu, you're my dream come true. Always. 💞</span></div>
+    </div>
+    <div class="bb-panel" id="bb4" style="justify-content:center; align-items:center; font-size:24px; color:var(--rose); text-align:center; line-height:2;">
+      <div>🔒</div>
+      <div style="margin-top:20px;">SECRET</div>
+      <div>UNLOCKED</div>
+      <div style="margin-top:20px; font-size:16px; color:var(--soft);">💕 Forever Yours 💕</div>
+    </div>
+    <div class="bb-footer">
+      <span>Press ENTER to run</span>
+      <span>valentine '26 ~</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SCENE 4: SECRET FULL SCREEN OVERLAY ════ -->
+<div id="secretScene" style="position:fixed; inset:0; background:var(--bg); display:none; justify-content:center; align-items:center; z-index:200; opacity:0; transition:opacity 0.5s;">
+  <div id="secretReveal" style="font-size:72px; font-weight:700; letter-spacing:10px; text-align:center; color:var(--rose); line-height:1.5; font-family:'IBM Plex Mono',monospace;">
+    I LOVE YOU<br>NEETU
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ═══ SOUNDS ═══ */
+let audioCtx;
+function ctx(){ return audioCtx||(audioCtx=new(window.AudioContext||window.webkitAudioContext)()); }
+
+function playClick(){
+  const c=ctx(), now=c.currentTime;
+  const len=c.sampleRate*.028;
+  const buf=c.createBuffer(1,len,c.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,50);
+  const s=c.createBufferSource(); s.buffer=buf;
+  const ng=c.createGain(); ng.gain.setValueAtTime(.15,now); ng.gain.exponentialRampToValueAtTime(.001,now+.028);
+  const o=c.createOscillator(); o.type='square';
+  o.frequency.setValueAtTime(2200,now); o.frequency.exponentialRampToValueAtTime(800,now+.012);
+  const og=c.createGain(); og.gain.setValueAtTime(.06,now); og.gain.exponentialRampToValueAtTime(.001,now+.022);
+  s.connect(ng); ng.connect(c.destination);
+  o.connect(og); og.connect(c.destination);
+  s.start(now); o.start(now); o.stop(now+.03);
+}
+
+function playEnter(){
+  const c=ctx(), now=c.currentTime;
+  const len=c.sampleRate*.07;
+  const buf=c.createBuffer(1,len,c.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,22);
+  const s=c.createBufferSource(); s.buffer=buf;
+  const ng=c.createGain(); ng.gain.setValueAtTime(.28,now); ng.gain.exponentialRampToValueAtTime(.001,now+.07);
+  const o=c.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(260,now); o.frequency.exponentialRampToValueAtTime(110,now+.055);
+  const og=c.createGain(); og.gain.setValueAtTime(.1,now); og.gain.exponentialRampToValueAtTime(.001,now+.08);
+  const o2=c.createOscillator(); o2.type='sine';
+  o2.frequency.setValueAtTime(880,now+.035); o2.frequency.exponentialRampToValueAtTime(1100,now+.07);
+  const og2=c.createGain(); og2.gain.setValueAtTime(0,now); og2.gain.setValueAtTime(.07,now+.035); og2.gain.exponentialRampToValueAtTime(.001,now+.11);
+  s.connect(ng);  ng.connect(c.destination);
+  o.connect(og);  og.connect(c.destination);
+  o2.connect(og2); og2.connect(c.destination);
+  s.start(now); o.start(now); o.stop(now+.1); o2.start(now); o2.stop(now+.14);
+}
+
+function playWrong(){
+  const c=ctx(), now=c.currentTime;
+  const o=c.createOscillator(); o.type='sawtooth';
+  o.frequency.setValueAtTime(200,now); o.frequency.exponentialRampToValueAtTime(80,now+.18);
+  const og=c.createGain(); og.gain.setValueAtTime(.1,now); og.gain.exponentialRampToValueAtTime(.001,now+.2);
+  o.connect(og); og.connect(c.destination);
+  o.start(now); o.stop(now+.22);
+}
+
+function playYes(){
+  const c=ctx(), now=c.currentTime;
+  [0, 0.08, 0.16].forEach((t,i)=>{
+    const o=c.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime([523,659,784][i],now+t);
+    const og=c.createGain(); og.gain.setValueAtTime(.12,now+t); og.gain.exponentialRampToValueAtTime(.001,now+t+.3);
+    o.connect(og); og.connect(c.destination);
+    o.start(now+t); o.stop(now+t+.35);
+  });
+}
+
+function playNo(){
+  const c=ctx(), now=c.currentTime;
+  const o=c.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(400,now); o.frequency.exponentialRampToValueAtTime(200,now+.4);
+  const og=c.createGain(); og.gain.setValueAtTime(.15,now); og.gain.exponentialRampToValueAtTime(.001,now+.45);
+  o.connect(og); og.connect(c.destination);
+  o.start(now); o.stop(now+.5);
+}
+
+/* ═══ BOOT ═══ */
+const boot=document.getElementById('boot');
+const question=document.getElementById('question');
+const main=document.getElementById('mainScreen');
+const barFill=document.getElementById('barFill');
+const pctText=document.getElementById('pctText');
+let t=0;
+function tick(ms,fn){setTimeout(fn,t);t+=ms;}
+
+['b0','b1','b2','b3','b4','b5','b6','b7','b8','b9'].forEach(id=>{
+  tick(320,()=>{ document.getElementById(id).classList.add('show'); playClick(); });
+});
+tick(250,()=>document.getElementById('b10').classList.add('show'));
+tick(150,()=>document.getElementById('b_bar').classList.add('show'));
+[10,25,40,55,70,85,100].forEach(v=>{
+  tick(280,()=>{ barFill.style.width=v+'%'; pctText.textContent='  '+v+'%'; });
+});
+tick(250,()=>document.getElementById('b11').classList.add('show'));
+tick(600,()=>document.getElementById('b12').classList.add('show'));
+tick(1100,()=>{ boot.classList.add('gone'); question.classList.add('show'); });
+
+/* ═══ QUESTION TYPING ═══ */
+const qTyped = document.getElementById('qTyped');
+const rejectMsg = document.getElementById('rejectMsg');
+let qBuffer = '';
+let questionActive = false;
+
+// wait a bit then enable keyboard for question
+setTimeout(()=>{ questionActive = true; }, t + 1200);
+
+document.addEventListener('keydown', e=>{
+  // QUESTION SCREEN
+  if(question.classList.contains('show') && questionActive && !question.classList.contains('gone')){
+    
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      const answer = qBuffer.trim().toLowerCase();
+      
+      if(answer === 'yes'){
+        playYes();
+        setTimeout(()=>{
+          question.classList.add('gone');
+          main.classList.add('show');
+          // trigger scramble for first panel
+          scrambleBadges(0);
+        }, 400);
+      } else if(answer === 'no'){
+        playNo();
+        rejectMsg.classList.add('show');
+        questionActive = false; // stop accepting input
+      } else {
+        // wrong input
+        playWrong();
+        qTyped.classList.add('wrong');
+        setTimeout(()=>{ 
+          qTyped.classList.remove('wrong'); 
+          qTyped.textContent=''; 
+          qBuffer=''; 
+        }, 350);
+      }
+      return;
+    }
+
+    if(e.key === 'Backspace'){
+      e.preventDefault();
+      if(qBuffer.length>0){ 
+        playClick(); 
+        qBuffer=qBuffer.slice(0,-1); 
+        qTyped.textContent=qBuffer; 
+      }
+      return;
+    }
+
+    if(e.key.length === 1){
+      e.preventDefault();
+      playClick();
+      qBuffer += e.key;
+      qTyped.textContent = qBuffer;
+    }
+    return;
+  }
+
+  // MAIN SCREEN SCENES
+  if(!main.classList.contains('show')) return;
+  if(cur>=4) return;
+
+  const target=CMDS[cur];
+  const el=typedEls[cur];
+
+  if(e.key==='Enter'){
+    e.preventDefault();
+    playEnter();
+    if(buffer===target){
+      setTimeout(()=>{ cur++; goTo(cur); }, 200);
+    } else {
+      playWrong();
+      el.classList.add('wrong');
+      setTimeout(()=>{ el.classList.remove('wrong'); el.textContent=''; buffer=''; }, 350);
+    }
+    return;
+  }
+
+  if(e.key==='Backspace'){
+    e.preventDefault();
+    if(buffer.length>0){ playClick(); buffer=buffer.slice(0,-1); el.textContent=buffer; }
+    return;
+  }
+
+  if(e.key.length===1){
+    e.preventDefault();
+    if(buffer.length>=target.length) return;
+    playClick();
+    buffer+=e.key;
+    el.textContent=buffer;
+  }
+});
+
+/* ═══ SCENES ═══ */
+const CMDS=['run love_scan.sh','cat love_letters.log','run forever.exe','ILOVEYOUYASH'];
+const scenes=[0,1,2,3].map(i=>document.getElementById('s'+i)); // only 4 in terminal
+const panels=[0,1,2,3,4].map(i=>document.getElementById('bb'+i));
+const typedEls=[0,1,2,3].map(i=>document.getElementById('typed'+i));
+const badge=document.getElementById('badge');
+let cur=0, buffer='';
+
+function goTo(idx){
+  scenes.forEach(s=>s.classList.remove('active'));
+  panels.forEach(p=>p.classList.remove('active'));
+  
+  // special handling for secret scene (scene 4)
+  if(idx === 4){
+    // hide main container and show secret overlay
+    document.getElementById('mainScreen').style.opacity = '0';
+    setTimeout(()=>{
+      document.getElementById('mainScreen').style.display = 'none';
+      const secretScene = document.getElementById('secretScene');
+      secretScene.style.display = 'flex';
+      setTimeout(()=>{
+        secretScene.style.opacity = '1';
+        // trigger full screen scramble + music
+        revealSecret();
+      }, 100);
+    }, 500);
+  } else {
+    scenes[idx].classList.add('active');
+    panels[idx].classList.add('active');
+    badge.textContent=(idx+1)+' / 5';
+    buffer='';
+    // scramble effect for bloomberg badges
+    scrambleBadges(idx);
+  }
+}
+
+// scramble animation for badges
+function scrambleBadges(panelIdx){
+  const panel = panels[panelIdx];
+  const badges = panel.querySelectorAll('.badge');
+  
+  // store original text for each badge
+  const originalTexts = Array.from(badges).map(b => b.textContent);
+  
+  // PHASE 1: ALL badges scramble together randomly
+  const scrambleInterval = setInterval(() => {
+    badges.forEach(badge => {
+      const len = badge.textContent.length;
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%+★∞●';
+      let scrambled = '';
+      for(let j=0; j<len; j++){
+        scrambled += chars[Math.floor(Math.random() * chars.length)];
+      }
+      badge.textContent = scrambled;
+      badge.classList.add('scrambling');
+    });
+  }, 80);
+  
+  // Stop global scrambling after 2 seconds, then resolve one by one
+  setTimeout(() => {
+    clearInterval(scrambleInterval);
+    
+    // PHASE 2: Resolve badges one by one
+    badges.forEach((badge, i) => {
+      setTimeout(() => {
+        const finalText = originalTexts[i];
+        const len = finalText.length;
+        let iterations = 0;
+        const maxIterations = 20;
+        
+        const resolveInterval = setInterval(() => {
+          if(iterations >= maxIterations){
+            badge.textContent = finalText;
+            badge.classList.remove('scrambling');
+            clearInterval(resolveInterval);
+            return;
+          }
+          
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%+★∞●';
+          let scrambled = '';
+          for(let j=0; j<len; j++){
+            // gradually reveal correct letters
+            if(Math.random() > 0.5 - (iterations / maxIterations * 0.5)){
+              scrambled += finalText[j];
+            } else {
+              scrambled += chars[Math.floor(Math.random() * chars.length)];
+            }
+          }
+          
+          badge.textContent = scrambled;
+          iterations++;
+        }, 50);
+        
+      }, i * 800); // each badge resolves 800ms after the previous
+    });
+    
+  }, 2000); // scramble all together for 2 seconds first
+}
+
+goTo(0);
+
+/* ═══ SECRET REVEAL WITH MUSIC ═══ */
+function revealSecret(){
+  const secretEl = document.getElementById('secretReveal');
+  const finalText = 'I LOVE YOU\nNEETU';
+  const lines = finalText.split('\n');
+  
+  // play romantic music
+  playLoveMusic();
+  
+  // PHASE 1: Fill screen with random letters (2 seconds)
+  let scrambleCount = 0;
+  const scrambleInterval = setInterval(()=>{
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ❤️💕💞🌹✨★';
+    let randomText = '';
+    for(let i=0; i<30; i++){
+      randomText += chars[Math.floor(Math.random()*chars.length)] + ' ';
+      if(i===14) randomText += '<br>';
+    }
+    secretEl.innerHTML = randomText;
+    scrambleCount++;
+    
+    if(scrambleCount > 25){
+      clearInterval(scrambleInterval);
+      // PHASE 2: Resolve to final message
+      resolveSecret();
+    }
+  }, 80);
+}
+
+function resolveSecret(){
+  const secretEl = document.getElementById('secretReveal');
+  const finalLines = ['I LOVE YOU', 'NEETU'];
+  let iterations = 0;
+  const maxIterations = 30;
+  
+  const resolveInterval = setInterval(()=>{
+    if(iterations >= maxIterations){
+      secretEl.innerHTML = 'I LOVE YOU<br>NEETU';
+      clearInterval(resolveInterval);
+      return;
+    }
+    
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let display = '';
+    
+    finalLines.forEach((line, lineIdx) => {
+      let scrambled = '';
+      for(let j=0; j<line.length; j++){
+        if(line[j] === ' '){
+          scrambled += ' ';
+        } else if(Math.random() > 0.5 - (iterations / maxIterations * 0.5)){
+          scrambled += line[j];
+        } else {
+          scrambled += chars[Math.floor(Math.random()*chars.length)];
+        }
+      }
+      display += scrambled;
+      if(lineIdx === 0) display += '<br>';
+    });
+    
+    secretEl.innerHTML = display;
+    iterations++;
+  }, 70);
+}
+
+function playLoveMusic(){
+  const ctx = audioCtx || (audioCtx = new(window.AudioContext||window.webkitAudioContext)());
+  const now = ctx.currentTime;
+  
+  // romantic melody notes (simple love theme)
+  const melody = [
+    {freq:523, time:0,    dur:0.5}, // C5
+    {freq:587, time:0.5,  dur:0.5}, // D5
+    {freq:659, time:1.0,  dur:0.5}, // E5
+    {freq:698, time:1.5,  dur:0.8}, // F5
+    {freq:659, time:2.5,  dur:0.5}, // E5
+    {freq:587, time:3.0,  dur:0.5}, // D5
+    {freq:523, time:3.5,  dur:1.0}, // C5
+    {freq:698, time:5.0,  dur:0.5}, // F5
+    {freq:784, time:5.5,  dur:0.5}, // G5
+    {freq:880, time:6.0,  dur:1.5}, // A5
+  ];
+  
+  melody.forEach(note=>{
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(note.freq, now + note.time);
+    
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now + note.time);
+    gain.gain.linearRampToValueAtTime(0.15, now + note.time + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + note.time + note.dur);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now + note.time);
+    osc.stop(now + note.time + note.dur);
+  });
+}
+
+})();
+</script>
+
+<script>
+        /* Queue function for early hits */
+        window.va =
+            window.va ||
+            function () {
+                (window.vaq = window.vaq || []).push(arguments);
+            };
+    </script>
+
+    <!-- Loads the tracker from your own domain -->
+    <script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
